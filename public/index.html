@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Blast - Broadcasting Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        .progress-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .progress-item:last-child {
+            border-bottom: none;
+        }
+        #progressContainer {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .variable-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Header -->
+            <div class="col-12">
+                <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+                    <div class="container">
+                        <span class="navbar-brand mb-0 h1">
+                            <i class="bi bi-whatsapp"></i> WhatsApp Broadcast Tool
+                        </span>
+                        <div class="navbar-text">
+                            <span id="connectionStatus" class="status-indicator status-disconnected"></span>
+                            <span id="statusText">Disconnected</span>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <div class="container mt-4">
+            <!-- Login Section -->
+            <div id="loginSection" class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header text-center">
+                            <h4><i class="bi bi-qr-code"></i> Login WhatsApp</h4>
+                        </div>
+                        <div class="card-body">
+                            <div id="qrContainer" class="qr-container">
+                                <div class="text-center">
+                                    <div class="spinner-border text-success" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-3">Menunggu QR Code...</p>
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <strong>Cara Login:</strong>
+                                <ol class="mb-0 mt-2">
+                                    <li>Buka WhatsApp di ponsel Anda</li>
+                                    <li>Ketuk Menu atau Settings dan pilih "Linked Devices"</li>
+                                    <li>Ketuk "Link a Device"</li>
+                                    <li>Scan QR Code yang muncul di atas</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Application -->
+            <div id="mainApp" class="row" style="display: none;">
+                <!-- User Info -->
+                <div class="col-12 mb-3">
+                    <div class="alert alert-success d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-check-circle"></i>
+                            <strong>Terhubung sebagai:</strong> <span id="userInfo"></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="disconnectBtn">
+                            <i class="bi bi-power"></i> Disconnect
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Broadcasting Form -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-broadcast"></i> WhatsApp Broadcasting</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="broadcastForm">
+                                <!-- Contacts Input -->
+                                <div class="mb-3">
+                                    <label for="contacts" class="form-label">
+                                        <i class="bi bi-person-lines-fill"></i> Daftar Kontak Target
+                                        <span id="contactsLoadedIndicator" class="badge bg-success ms-2" style="display: none;">
+                                            <i class="bi bi-check-circle"></i> Data Tersimpan
+                                        </span>
+                                    </label>
+                                    <textarea class="form-control" id="contacts" rows="6" placeholder="Format: nama,nomorhp&#10;Contoh:&#10;John Doe,081234567890&#10;Jane Smith,081234567891&#10;Ahmad,081234567892"></textarea>
+                                    <div class="form-text">
+                                        Format: <code>nama,nomorhp</code> (satu kontak per baris) - <em>Data otomatis tersimpan</em>
+                                    </div>
+                                </div>
+
+                                <!-- Message Template -->
+                                <div class="mb-3">
+                                    <label for="message" class="form-label">
+                                        <i class="bi bi-chat-text"></i> Template Pesan
+                                        <span id="messageLoadedIndicator" class="badge bg-success ms-2" style="display: none;">
+                                            <i class="bi bi-check-circle"></i> Data Tersimpan
+                                        </span>
+                                    </label>
+                                    <textarea class="form-control" id="message" rows="4" placeholder="Halo {nama}, ini adalah pesan broadcast untuk nomor {nomorhp}"></textarea>
+                                    <div class="variable-info">
+                                        <strong>Variable yang tersedia:</strong>
+                                        <ul class="mb-0">
+                                            <li><code>{nama}</code> - Akan diganti dengan nama kontak</li>
+                                            <li><code>{nomorhp}</code> - Akan diganti dengan nomor HP kontak</li>
+                                        </ul>
+                                        <small class="text-muted"><em>Template otomatis tersimpan</em></small>
+                                    </div>
+                                </div>
+
+                                <!-- Delay Setting -->
+                                <div class="mb-3">
+                                    <label for="delay" class="form-label">
+                                        <i class="bi bi-clock"></i> Delay per Pesan (detik)
+                                    </label>
+                                    <input type="number" class="form-control" id="delay" value="2" min="1" max="60">
+                                    <div class="form-text">
+                                        Jeda waktu antara pengiriman pesan (1-60 detik)
+                                    </div>
+                                </div>
+
+                                <!-- Send Button -->
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-success btn-lg" id="sendBtn">
+                                        <i class="bi bi-send"></i> Mulai Broadcasting
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clearDataBtn">
+                                        <i class="bi bi-trash"></i> Bersihkan Data Tersimpan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress & Results -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="bi bi-activity"></i> Progress & Status</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- Progress Bar -->
+                            <div id="progressSection" style="display: none;">
+                                <div class="mb-3">
+                                    <div class="progress">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progressText">0 / 0</small>
+                                </div>
+                            </div>
+
+                            <!-- Progress Log -->
+                            <div id="progressContainer">
+                                <div id="progressLog" class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Siap untuk broadcasting
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6><i class="bi bi-graph-up"></i> Statistik</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h5 id="totalSent" class="text-success">0</h5>
+                                    <small>Terkirim</small>
+                                </div>
+                                <div class="col-4">
+                                    <h5 id="totalFailed" class="text-danger">0</h5>
+                                    <small>Gagal</small>
+                                </div>
+                                <div class="col-4">
+                                    <h5 id="totalContacts" class="text-info">0</h5>
+                                    <small>Total</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
