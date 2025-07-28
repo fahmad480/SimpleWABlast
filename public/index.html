@@ -58,6 +58,7 @@
                         <div class="navbar-text">
                             <span id="connectionStatus" class="status-indicator status-disconnected"></span>
                             <span id="statusText">Disconnected</span>
+                            <span class="ms-3 text-muted small">Session: <span id="sessionDisplay"></span></span>
                         </div>
                     </div>
                 </nav>
@@ -167,9 +168,18 @@
                                     <button type="submit" class="btn btn-success btn-lg" id="sendBtn">
                                         <i class="bi bi-send"></i> Mulai Broadcasting
                                     </button>
-                                    <button type="button" class="btn btn-outline-secondary" id="clearDataBtn">
-                                        <i class="bi bi-trash"></i> Bersihkan Data Tersimpan
-                                    </button>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-secondary w-100" id="clearDataBtn">
+                                                <i class="bi bi-trash"></i> Bersihkan Data
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-warning w-100" id="clearSessionBtn">
+                                                <i class="bi bi-arrow-clockwise"></i> Reset Session
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </form>
                         </div>

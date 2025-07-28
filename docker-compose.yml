@@ -8,6 +8,7 @@ services:
       - "3000:3000"
     volumes:
       - ./auth_info_baileys:/app/auth_info_baileys
+      - ./sessions:/app/sessions
     environment:
       - NODE_ENV=production
     restart: unless-stopped

@@ -57,6 +57,9 @@ jspm_packages/
 # Auth info baileys (session files)
 auth_info_baileys/
 
+# Browser sessions
+sessions/
+
 # OS generated files
 .DS_Store
 .DS_Store?

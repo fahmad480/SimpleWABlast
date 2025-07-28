@@ -5,7 +5,8 @@ Aplikasi Node.js sederhana untuk WhatsApp broadcasting menggunakan Baileys Whats
 ## Fitur
 
 - **QR Code Login**: Login otomatis menggunakan QR Code WhatsApp Web
-- **Session Management**: Penyimpanan session lokal untuk login otomatis
+- **Multi-Session**: Setiap browser memiliki session WhatsApp terpisah
+- **Browser-Based Session**: Session tersimpan di localStorage browser
 - **Disconnect Feature**: Tombol disconnect untuk memutus koneksi WhatsApp
 - **Local Storage**: Daftar kontak dan template pesan otomatis tersimpan di browser
 - **Broadcasting**: Kirim pesan ke multiple kontak sekaligus
@@ -13,6 +14,7 @@ Aplikasi Node.js sederhana untuk WhatsApp broadcasting menggunakan Baileys Whats
 - **Delay Control**: Pengaturan delay antar pesan
 - **Real-time Progress**: Monitor progress broadcasting secara real-time
 - **Auto-save**: Data form otomatis tersimpan saat mengetik
+- **Session Management**: Reset session atau clear data tersimpan
 - **Docker Support**: Containerization dengan Docker dan Docker Compose
 - **Bootstrap UI**: Interface yang responsif dan user-friendly
 
@@ -115,7 +117,14 @@ npm run docker:logs     # View logs
 - **Clear Data**: Tombol untuk menghapus semua data tersimpan
 - **Time Stamp**: Informasi kapan data terakhir disimpan
 
-### 5. Device Management
+### 5. Session Management
+- **Multi-Browser Support**: Setiap browser memiliki session WhatsApp terpisah
+- **Browser-Based Storage**: Session ID disimpan di localStorage browser
+- **Reset Session**: Tombol untuk reset session WhatsApp
+- **Session Display**: Menampilkan ID session di navbar
+- **Independent Sessions**: Session tidak tergantung pada project files
+
+### 6. Device Management
 - **Disconnect**: Tombol untuk memutus koneksi WhatsApp secara manual
 - **Reconnect**: Otomatis reconnect jika terputus
 - **Session Cleanup**: Menghapus session saat disconnect manual
@@ -138,7 +147,8 @@ WABlast/
 ├── public/
 │   ├── index.html        # Interface utama
 │   └── app.js           # Client-side JavaScript
-└── auth_info_baileys/   # Folder session WhatsApp (auto-generated)
+├── sessions/             # Browser sessions (auto-generated)
+└── auth_info_baileys/   # Legacy session folder (auto-generated)
 ```
 
 ## Dependencies
@@ -151,10 +161,12 @@ WABlast/
 
 ## Catatan Penting
 
-- Pastikan nomor WhatsApp yang digunakan untuk login aktif
-- Format nomor HP bisa dengan atau tanpa kode negara (akan otomatis ditambahkan +62)
-- Gunakan delay yang wajar untuk menghindari spam detection
-- Session tersimpan di folder `auth_info_baileys/`
+- **Multi-Browser Support**: Setiap browser memiliki session WhatsApp terpisah
+- **Session Storage**: Session disimpan berdasarkan browser, bukan project
+- **Reset Session**: Gunakan tombol "Reset Session" untuk login dengan akun berbeda
+- **Format Nomor**: Format nomor HP bisa dengan atau tanpa kode negara (akan otomatis ditambahkan +62)
+- **Delay**: Gunakan delay yang wajar untuk menghindari spam detection
+- **Privacy**: Session hanya tersimpan di browser masing-masing
 
 ## Development
 

@@ -1,6 +1,18 @@
 // Initialize Socket.IO
 const socket = io();
 
+// Generate or get session ID from localStorage
+let sessionId = localStorage.getItem('wa_session_id');
+if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('wa_session_id', sessionId);
+}
+
+console.log('Session ID:', sessionId);
+
+// Display session ID in UI
+document.getElementById('sessionDisplay').textContent = sessionId.substr(-8);
+
 // DOM Elements
 const loginSection = document.getElementById('loginSection');
 const mainApp = document.getElementById('mainApp');
@@ -119,20 +131,30 @@ function clearLocalStorage() {
     }
 }
 
+function clearSession() {
+    if (confirm('Apakah Anda yakin ingin menghapus session WhatsApp? Anda perlu login ulang.')) {
+        localStorage.removeItem('wa_session_id');
+        location.reload();
+    }
+}
+
 // Check connection status on load
 async function checkStatus() {
     try {
-        const response = await fetch('/status');
+        const response = await fetch(`/status/${sessionId}`);
         const data = await response.json();
         
         if (data.connected && data.user) {
             showMainApp(data.user);
         } else {
             showLoginSection();
+            // Initialize session with server
+            socket.emit('init-session', sessionId);
         }
     } catch (error) {
         console.error('Error checking status:', error);
         showLoginSection();
+        socket.emit('init-session', sessionId);
     }
 }
 
@@ -278,7 +300,7 @@ broadcastForm.addEventListener('submit', async (e) => {
     addLogEntry('Memulai broadcasting...', 'info');
     
     try {
-        const response = await fetch('/send-broadcast', {
+        const response = await fetch(`/send-broadcast/${sessionId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -329,11 +351,14 @@ document.getElementById('delay').addEventListener('input', (e) => {
 // Clear data button
 document.getElementById('clearDataBtn').addEventListener('click', clearLocalStorage);
 
+// Clear session button
+document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
+
 // Disconnect button
 document.getElementById('disconnectBtn').addEventListener('click', async () => {
     if (confirm('Apakah Anda yakin ingin memutus koneksi WhatsApp?')) {
         try {
-            const response = await fetch('/disconnect', {
+            const response = await fetch(`/disconnect/${sessionId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -343,6 +368,8 @@ document.getElementById('disconnectBtn').addEventListener('click', async () => {
             if (response.ok) {
                 const data = await response.json();
                 addLogEntry('Koneksi WhatsApp terputus', 'info');
+                showLoginSection();
+                socket.emit('init-session', sessionId);
             } else {
                 const error = await response.json();
                 addLogEntry(`Error: ${error.error}`, 'error');

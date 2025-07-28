@@ -13,8 +13,8 @@ RUN npm install --production
 # Copy app source
 COPY . .
 
-# Create auth directory
-RUN mkdir -p auth_info_baileys
+# Create directories
+RUN mkdir -p auth_info_baileys sessions
 
 # Expose port
 EXPOSE 3000

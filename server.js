@@ -15,34 +15,48 @@ const io = new Server(server);
 app.use(express.static('public'));
 app.use(express.json());
 
-// Global variables
-let sock;
-let qr;
-let isConnected = false;
+// Global variables - Store multiple sessions
+const sessions = new Map(); // sessionId -> { sock, isConnected, qr }
 
-// Ensure auth folder exists
-const authFolder = './auth_info_baileys';
-if (!fs.existsSync(authFolder)) {
-    fs.mkdirSync(authFolder);
+// Generate session directory
+function getSessionFolder(sessionId) {
+    const sessionFolder = `./sessions/${sessionId}`;
+    if (!fs.existsSync('./sessions')) {
+        fs.mkdirSync('./sessions');
+    }
+    if (!fs.existsSync(sessionFolder)) {
+        fs.mkdirSync(sessionFolder);
+    }
+    return sessionFolder;
 }
 
-// Initialize WhatsApp connection
-async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+// Initialize WhatsApp connection for specific session
+async function connectToWhatsApp(sessionId, socket) {
+    const sessionFolder = getSessionFolder(sessionId);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
     
-    sock = makeWASocket({
+    const sock = makeWASocket({
         auth: state,
         printQRInTerminal: true
     });
 
+    // Store session
+    sessions.set(sessionId, {
+        sock: sock,
+        isConnected: false,
+        qr: null
+    });
+
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr: newQr } = update;
+        const session = sessions.get(sessionId);
         
         if (newQr) {
-            qr = newQr;
-            QRCode.toDataURL(qr, (err, url) => {
+            session.qr = newQr;
+            sessions.set(sessionId, session);
+            QRCode.toDataURL(newQr, (err, url) => {
                 if (!err) {
-                    io.emit('qr', url);
+                    socket.emit('qr', url);
                 }
             });
         }
@@ -51,20 +65,23 @@ async function connectToWhatsApp() {
             const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
             
-            isConnected = false;
-            io.emit('disconnected');
+            session.isConnected = false;
+            sessions.set(sessionId, session);
+            socket.emit('disconnected');
             
             if (shouldReconnect) {
-                connectToWhatsApp();
+                connectToWhatsApp(sessionId, socket);
             }
         } else if (connection === 'open') {
-            console.log('WhatsApp connected successfully');
-            isConnected = true;
-            io.emit('connected', sock.user);
+            console.log('WhatsApp connected successfully for session:', sessionId);
+            session.isConnected = true;
+            sessions.set(sessionId, session);
+            socket.emit('connected', sock.user);
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
+    return sock;
 }
 
 // Routes
@@ -72,20 +89,26 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/status', (req, res) => {
+app.get('/status/:sessionId', (req, res) => {
+    const sessionId = req.params.sessionId;
+    const session = sessions.get(sessionId);
+    
     res.json({ 
-        connected: isConnected,
-        user: sock?.user || null
+        connected: session?.isConnected || false,
+        user: session?.sock?.user || null
     });
 });
 
-app.post('/disconnect', (req, res) => {
+app.post('/disconnect/:sessionId', (req, res) => {
     try {
-        if (sock && isConnected) {
-            console.log('Manually disconnecting WhatsApp...');
-            sock.logout();
-            isConnected = false;
-            io.emit('disconnected');
+        const sessionId = req.params.sessionId;
+        const session = sessions.get(sessionId);
+        
+        if (session?.sock && session.isConnected) {
+            console.log('Manually disconnecting WhatsApp for session:', sessionId);
+            session.sock.logout();
+            session.isConnected = false;
+            sessions.set(sessionId, session);
             res.json({ success: true, message: 'Disconnected successfully' });
         } else {
             res.status(400).json({ error: 'No active connection to disconnect' });
@@ -96,11 +119,13 @@ app.post('/disconnect', (req, res) => {
     }
 });
 
-app.post('/send-broadcast', async (req, res) => {
+app.post('/send-broadcast/:sessionId', async (req, res) => {
     try {
+        const sessionId = req.params.sessionId;
         const { contacts, message, delay } = req.body;
+        const session = sessions.get(sessionId);
         
-        if (!isConnected || !sock) {
+        if (!session?.isConnected || !session.sock) {
             return res.status(400).json({ error: 'WhatsApp not connected' });
         }
 
@@ -136,7 +161,7 @@ app.post('/send-broadcast', async (req, res) => {
                 
                 const jid = formattedNumber + '@s.whatsapp.net';
                 
-                await sock.sendMessage(jid, { text: personalizedMessage });
+                await session.sock.sendMessage(jid, { text: personalizedMessage });
                 
                 results.push({ 
                     contact: `${nama} (${nomorhp})`, 
@@ -188,15 +213,23 @@ app.post('/send-broadcast', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('Client connected');
     
-    if (isConnected && sock?.user) {
-        socket.emit('connected', sock.user);
-    } else if (qr) {
-        QRCode.toDataURL(qr, (err, url) => {
-            if (!err) {
-                socket.emit('qr', url);
-            }
-        });
-    }
+    socket.on('init-session', (sessionId) => {
+        console.log('Initializing session:', sessionId);
+        const session = sessions.get(sessionId);
+        
+        if (session?.isConnected && session.sock?.user) {
+            socket.emit('connected', session.sock.user);
+        } else if (session?.qr) {
+            QRCode.toDataURL(session.qr, (err, url) => {
+                if (!err) {
+                    socket.emit('qr', url);
+                }
+            });
+        } else {
+            // Start new session
+            connectToWhatsApp(sessionId, socket);
+        }
+    });
     
     socket.on('disconnect', () => {
         console.log('Client disconnected');
@@ -208,5 +241,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Open http://localhost:${PORT} in your browser`);
-    connectToWhatsApp();
 });
