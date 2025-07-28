@@ -1,5 +1,8 @@
-# Use official Node.js runtime as base image
-FROM node:18-alpine
+# Use official Node.js runtime as base image - Updated to Node 20
+FROM node:20-alpine
+
+# Install curl for health check
+RUN apk add --no-cache curl
 
 # Set working directory in container
 WORKDIR /app
@@ -7,8 +10,8 @@ WORKDIR /app
 # Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies - Updated npm command
+RUN npm ci --omit=dev
 
 # Copy application source code
 COPY . .
