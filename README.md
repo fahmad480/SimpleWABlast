@@ -38,49 +38,41 @@ npm start
 - Docker dan Docker Compose terinstall
 - Port 3000 tersedia
 
-#### Quick Start dengan Docker Compose
+#### Quick Start
 ```bash
-# Clone repository
-git clone <repository-url>
-cd WABlast
+# Build dan jalankan
+docker compose up -d
 
-# Deploy dengan docker-compose
-docker-compose up -d
-
-# Atau gunakan script deployment
+# Atau gunakan script
 # Windows:
-deploy.bat compose
+deploy.bat start
 
 # Linux/Mac:
 chmod +x deploy.sh
-./deploy.sh compose
+./deploy.sh start
 ```
 
-#### Manual Docker Build
+#### Manual Commands
 ```bash
 # Build image
-docker build -t whatsapp-blast .
+docker compose build
 
-# Run container
-docker run -d \
-  --name wa-blast \
-  -p 3000:3000 \
-  -v ./auth_info_baileys:/app/auth_info_baileys \
-  whatsapp-blast
+# Start application
+docker compose up -d
+
+# Stop application
+docker compose down
+
+# View logs
+docker compose logs -f whatsapp-blast
 ```
 
-#### Docker Commands
+#### NPM Scripts
 ```bash
-# Menggunakan npm scripts
-npm run docker:build     # Build Docker image
-npm run docker:compose   # Start with docker-compose
-npm run docker:down      # Stop docker-compose
-npm run docker:logs      # View logs
-
-# Manual commands
-docker-compose up -d      # Start in background
-docker-compose down       # Stop and remove containers
-docker-compose logs -f    # Follow logs
+npm run docker:build    # Build image
+npm run docker:start    # Start app
+npm run docker:stop     # Stop app
+npm run docker:logs     # View logs
 ```
 
 ## Penggunaan
@@ -138,7 +130,7 @@ docker-compose logs -f    # Follow logs
 WABlast/
 ├── package.json          # Dependencies dan scripts
 ├── server.js             # Server utama dan WhatsApp connection
-├── Dockerfile            # Docker image configuration
+├── Dockerfile            # Docker configuration
 ├── docker-compose.yml    # Docker Compose configuration
 ├── .dockerignore         # Docker ignore rules
 ├── deploy.sh             # Linux/Mac deployment script
@@ -180,9 +172,9 @@ npm run dev
 
 ### Docker Issues
 1. **Port sudah digunakan**: Ubah port di docker-compose.yml atau stop aplikasi yang menggunakan port 3000
-2. **Permission denied**: Pastikan Docker service berjalan dan user memiliki akses ke Docker
-3. **Build gagal**: Cek koneksi internet untuk download dependencies
-4. **Container tidak start**: Periksa logs dengan `docker-compose logs`
+2. **Build gagal**: Pastikan Docker berjalan dan koneksi internet stabil
+3. **Container tidak start**: Periksa logs dengan `docker compose logs`
+4. **Permission denied**: Pastikan Docker service berjalan
 
 ### Session Issues
 1. **Login berulang**: Hapus folder `auth_info_baileys` dan login ulang

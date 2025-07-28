@@ -1,38 +1,23 @@
-# Use official Node.js runtime as base image - Updated to Node 20
-FROM node:20-alpine
+# Use Node.js 20 slim image
+FROM node:20-slim
 
-# Install curl for health check
-RUN apk add --no-cache curl
-
-# Set working directory in container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies - Updated npm command
-RUN npm ci --omit=dev
+# Install dependencies
+RUN npm install --production
 
-# Copy application source code
+# Copy app source
 COPY . .
 
-# Create auth directory with proper permissions
-RUN mkdir -p auth_info_baileys && \
-    chown -R node:node /app
+# Create auth directory
+RUN mkdir -p auth_info_baileys
 
-# Switch to non-root user
-USER node
-
-# Expose port 3000
+# Expose port
 EXPOSE 3000
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/status || exit 1
-
-# Start the application
+# Start app
 CMD ["npm", "start"]

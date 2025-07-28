@@ -7,42 +7,11 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Persist WhatsApp session data
       - ./auth_info_baileys:/app/auth_info_baileys
-      # Optional: Mount logs directory
-      - ./logs:/app/logs
     environment:
       - NODE_ENV=production
-      - PORT=3000
     restart: unless-stopped
-    networks:
-      - wa-blast-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.wa-blast.rule=Host(`localhost`)"
-      - "traefik.http.services.wa-blast.loadbalancer.server.port=3000"
-
-  # Optional: Add reverse proxy with Traefik
-  # traefik:
-  #   image: traefik:v2.10
-  #   container_name: wa-blast-traefik
-  #   command:
-  #     - "--api.insecure=true"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false"
-  #     - "--entrypoints.web.address=:80"
-  #   ports:
-  #     - "80:80"
-  #     - "8080:8080"
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   networks:
-  #     - wa-blast-network
 
 networks:
-  wa-blast-network:
+  default:
     driver: bridge
-
-volumes:
-  auth_data:
-    driver: local
