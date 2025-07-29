@@ -4,8 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Blast - Broadcasting Tool</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@heroicons/heroicons@1.0.6/outline/heroicons-outline.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        whatsapp: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         .qr-container {
             display: flex;
@@ -21,14 +43,14 @@
             margin-right: 8px;
         }
         .status-connected {
-            background-color: #28a745;
+            background-color: #22c55e;
         }
         .status-disconnected {
-            background-color: #dc3545;
+            background-color: #ef4444;
         }
         .progress-item {
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
         }
         .progress-item:last-child {
             border-bottom: none;
@@ -37,148 +59,261 @@
             max-height: 300px;
             overflow-y: auto;
         }
-        .variable-info {
-            background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 10px;
-            margin: 10px 0;
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Custom scrollbar */
+        #progressContainer::-webkit-scrollbar {
+            width: 6px;
+        }
+        #progressContainer::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        #progressContainer::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        #progressContainer::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Header -->
-            <div class="col-12">
-                <nav class="navbar navbar-expand-lg navbar-dark bg-success">
-                    <div class="container">
-                        <span class="navbar-brand mb-0 h1">
-                            <i class="bi bi-whatsapp"></i> WhatsApp Broadcast Tool
-                        </span>
-                        <div class="navbar-text">
-                            <span id="connectionStatus" class="status-indicator status-disconnected"></span>
-                            <span id="statusText">Disconnected</span>
-                            <span class="ms-3 text-muted small">Session: <span id="sessionDisplay"></span></span>
-                        </div>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header Navigation -->
+    <nav class="bg-gradient-to-r from-whatsapp-600 to-whatsapp-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <!-- WhatsApp Logo Icon -->
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-white mr-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.893 3.786"/>
+                        </svg>
                     </div>
-                </nav>
+                    <div class="hidden md:block">
+                        <h1 class="text-xl font-bold text-white">WhatsApp Broadcast Tool</h1>
+                        <p class="text-whatsapp-100 text-sm">Kirim pesan massal dengan mudah</p>
+                    </div>
+                    <div class="md:hidden">
+                        <h1 class="text-lg font-bold text-white">WA Blast</h1>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <span id="connectionStatus" class="status-indicator status-disconnected"></span>
+                        <span id="statusText" class="text-white text-sm hidden sm:inline">Disconnected</span>
+                    </div>
+                    <div class="text-whatsapp-100 text-xs hidden sm:block">
+                        <span class="font-medium">Session:</span> 
+                        <span id="sessionDisplay" class="font-mono bg-whatsapp-800 px-2 py-1 rounded"></span>
+                    </div>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <div class="container mt-4">
-            <!-- Login Section -->
-            <div id="loginSection" class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header text-center">
-                            <h4><i class="bi bi-qr-code"></i> Login WhatsApp</h4>
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Login Section -->
+        <div id="loginSection" class="min-h-screen flex items-center justify-center">
+            <div class="w-full space-y-8">
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <div class="text-center">
+                        <div class="mx-auto h-16 w-16 bg-whatsapp-100 rounded-full flex items-center justify-center mb-4">
+                            <svg class="h-8 w-8 text-whatsapp-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h4"/>
+                            </svg>
                         </div>
-                        <div class="card-body">
-                            <div id="qrContainer" class="qr-container">
-                                <div class="text-center">
-                                    <div class="spinner-border text-success" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-3">Menunggu QR Code...</p>
-                                </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Login WhatsApp</h2>
+                        <p class="text-gray-600 mb-6">Scan QR Code untuk memulai broadcasting</p>
+                    </div>
+                    
+                    <div id="qrContainer" class="qr-container">
+                        <div class="text-center">
+                            <div class="inline-flex items-center justify-center w-12 h-12 bg-whatsapp-100 rounded-full animate-pulse-slow mb-4">
+                                <svg class="w-6 h-6 text-whatsapp-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
                             </div>
-                            <div class="alert alert-info mt-3">
-                                <strong>Cara Login:</strong>
-                                <ol class="mb-0 mt-2">
-                                    <li>Buka WhatsApp di ponsel Anda</li>
-                                    <li>Ketuk Menu atau Settings dan pilih "Linked Devices"</li>
-                                    <li>Ketuk "Link a Device"</li>
-                                    <li>Scan QR Code yang muncul di atas</li>
+                            <p class="text-gray-600">Menunggu QR Code...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <h4 class="text-sm font-medium text-blue-800 mb-2">Cara Login:</h4>
+                                <ol class="text-sm text-blue-700 space-y-1">
+                                    <li>1. Buka WhatsApp di ponsel Anda</li>
+                                    <li>2. Pilih Menu → "Linked Devices"</li>
+                                    <li>3. Ketuk "Link a Device"</li>
+                                    <li>4. Scan QR Code di atas</li>
                                 </ol>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Main Application -->
-            <div id="mainApp" class="row" style="display: none;">
-                <!-- User Info -->
-                <div class="col-12 mb-3">
-                    <div class="alert alert-success d-flex justify-content-between align-items-center">
+        <!-- Main Application -->
+        <div id="mainApp" class="space-y-6" style="display: none;">
+            <!-- User Info Banner -->
+            <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="bg-white bg-opacity-20 rounded-full p-2 mr-3">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
                         <div>
-                            <i class="bi bi-check-circle"></i>
-                            <strong>Terhubung sebagai:</strong> <span id="userInfo"></span>
+                            <p class="text-white font-medium">Terhubung sebagai:</p>
+                            <p id="userInfo" class="text-green-100 text-sm"></p>
                         </div>
-                        <button type="button" class="btn btn-outline-danger btn-sm" id="disconnectBtn">
-                            <i class="bi bi-power"></i> Disconnect
-                        </button>
                     </div>
+                    <button type="button" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200" id="disconnectBtn">
+                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        Disconnect
+                    </button>
                 </div>
+            </div>
 
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Broadcasting Form -->
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5><i class="bi bi-broadcast"></i> WhatsApp Broadcasting</h5>
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                                </svg>
+                                WhatsApp Broadcasting
+                            </h3>
                         </div>
-                        <div class="card-body">
-                            <form id="broadcastForm">
+                        
+                        <div class="p-6">
+                            <form id="broadcastForm" class="space-y-6">
                                 <!-- Contacts Input -->
-                                <div class="mb-3">
-                                    <label for="contacts" class="form-label">
-                                        <i class="bi bi-person-lines-fill"></i> Daftar Kontak Target
-                                        <span id="contactsLoadedIndicator" class="badge bg-success ms-2" style="display: none;">
-                                            <i class="bi bi-check-circle"></i> Data Tersimpan
-                                        </span>
+                                <div>
+                                    <label for="contacts" class="block text-sm font-medium text-gray-700 mb-2">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center">
+                                                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                </svg>
+                                                Daftar Kontak Target
+                                            </div>
+                                            <span id="contactsLoadedIndicator" class="hidden bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                                                <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                Data Tersimpan
+                                            </span>
+                                        </div>
                                     </label>
-                                    <textarea class="form-control" id="contacts" rows="6" placeholder="Format: nama,nomorhp&#10;Contoh:&#10;John Doe,081234567890&#10;Jane Smith,081234567891&#10;Ahmad,081234567892"></textarea>
-                                    <div class="form-text">
-                                        Format: <code>nama,nomorhp</code> (satu kontak per baris) - <em>Data otomatis tersimpan</em>
-                                    </div>
+                                    <textarea class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-none" 
+                                              id="contacts" 
+                                              rows="6" 
+                                              placeholder="Format: nama,nomorhp&#10;Contoh:&#10;John Doe,081234567890&#10;Jane Smith,081234567891&#10;Ahmad,081234567892"></textarea>
+                                    <p class="mt-2 text-sm text-gray-500">
+                                        Format: <code class="bg-gray-100 px-1 py-0.5 rounded text-xs">nama,nomorhp</code> (satu kontak per baris) • <em>Data otomatis tersimpan</em>
+                                    </p>
                                 </div>
 
                                 <!-- Message Template -->
-                                <div class="mb-3">
-                                    <label for="message" class="form-label">
-                                        <i class="bi bi-chat-text"></i> Template Pesan
-                                        <span id="messageLoadedIndicator" class="badge bg-success ms-2" style="display: none;">
-                                            <i class="bi bi-check-circle"></i> Data Tersimpan
-                                        </span>
+                                <div>
+                                    <label for="message" class="block text-sm font-medium text-gray-700 mb-2">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center">
+                                                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                                </svg>
+                                                Template Pesan
+                                            </div>
+                                            <span id="messageLoadedIndicator" class="hidden bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                                                <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                Data Tersimpan
+                                            </span>
+                                        </div>
                                     </label>
-                                    <textarea class="form-control" id="message" rows="4" placeholder="Halo {nama}, ini adalah pesan broadcast untuk nomor {nomorhp}"></textarea>
-                                    <div class="variable-info">
-                                        <strong>Variable yang tersedia:</strong>
-                                        <ul class="mb-0">
-                                            <li><code>{nama}</code> - Akan diganti dengan nama kontak</li>
-                                            <li><code>{nomorhp}</code> - Akan diganti dengan nomor HP kontak</li>
-                                        </ul>
-                                        <small class="text-muted"><em>Template otomatis tersimpan</em></small>
+                                    <textarea class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 resize-none" 
+                                              id="message" 
+                                              rows="4" 
+                                              placeholder="Halo {nama}, ini adalah pesan broadcast untuk nomor {nomorhp}"></textarea>
+                                    <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                        <div class="flex">
+                                            <svg class="w-4 h-4 text-blue-400 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-blue-800 mb-1">Variable yang tersedia:</h4>
+                                                <ul class="text-sm text-blue-700 space-y-1">
+                                                    <li>• <code class="bg-blue-100 px-1 py-0.5 rounded text-xs">{nama}</code> - Akan diganti dengan nama kontak</li>
+                                                    <li>• <code class="bg-blue-100 px-1 py-0.5 rounded text-xs">{nomorhp}</code> - Akan diganti dengan nomor HP kontak</li>
+                                                </ul>
+                                                <p class="text-xs text-blue-600 mt-2"><em>Template otomatis tersimpan</em></p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <!-- Delay Setting -->
-                                <div class="mb-3">
-                                    <label for="delay" class="form-label">
-                                        <i class="bi bi-clock"></i> Delay per Pesan (detik)
+                                <div>
+                                    <label for="delay" class="block text-sm font-medium text-gray-700 mb-2">
+                                        <div class="flex items-center">
+                                            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            Delay per Pesan (detik)
+                                        </div>
                                     </label>
-                                    <input type="number" class="form-control" id="delay" value="2" min="1" max="60">
-                                    <div class="form-text">
-                                        Jeda waktu antara pengiriman pesan (1-60 detik)
-                                    </div>
+                                    <input type="number" 
+                                           class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200" 
+                                           id="delay" 
+                                           value="2" 
+                                           min="1" 
+                                           max="60">
+                                    <p class="mt-2 text-sm text-gray-500">Jeda waktu antara pengiriman pesan (1-60 detik)</p>
                                 </div>
 
-                                <!-- Send Button -->
-                                <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-success btn-lg" id="sendBtn">
-                                        <i class="bi bi-send"></i> Mulai Broadcasting
+                                <!-- Action Buttons -->
+                                <div class="space-y-3">
+                                    <button type="submit" 
+                                            class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:ring-4 focus:ring-green-300" 
+                                            id="sendBtn">
+                                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                        </svg>
+                                        Mulai Broadcasting
                                     </button>
-                                    <div class="row">
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-secondary w-100" id="clearDataBtn">
-                                                <i class="bi bi-trash"></i> Bersihkan Data
-                                            </button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-warning w-100" id="clearSessionBtn">
-                                                <i class="bi bi-arrow-clockwise"></i> Reset Session
-                                            </button>
-                                        </div>
+                                    
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button type="button" 
+                                                class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200" 
+                                                id="clearDataBtn">
+                                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                            Bersihkan Data
+                                        </button>
+                                        <button type="button" 
+                                                class="bg-orange-100 hover:bg-orange-200 text-orange-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200" 
+                                                id="clearSessionBtn">
+                                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                            Reset Session
+                                        </button>
                                     </div>
                                 </div>
                             </form>
@@ -186,51 +321,66 @@
                     </div>
                 </div>
 
-                <!-- Progress & Results -->
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6><i class="bi bi-activity"></i> Progress & Status</h6>
+                <!-- Sidebar -->
+                <div class="space-y-6">
+                    <!-- Progress & Status -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                Progress & Status
+                            </h3>
                         </div>
-                        <div class="card-body">
+                        
+                        <div class="p-4">
                             <!-- Progress Bar -->
-                            <div id="progressSection" style="display: none;">
-                                <div class="mb-3">
-                                    <div class="progress">
-                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                             role="progressbar" style="width: 0%"></div>
-                                    </div>
-                                    <small class="text-muted" id="progressText">0 / 0</small>
+                            <div id="progressSection" class="hidden mb-4">
+                                <div class="bg-gray-200 rounded-full h-3 mb-2">
+                                    <div id="progressBar" 
+                                         class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out" 
+                                         style="width: 0%"></div>
                                 </div>
+                                <p class="text-sm text-gray-600 text-center" id="progressText">0 / 0</p>
                             </div>
 
                             <!-- Progress Log -->
-                            <div id="progressContainer">
-                                <div id="progressLog" class="text-muted">
-                                    <i class="bi bi-info-circle"></i> Siap untuk broadcasting
+                            <div id="progressContainer" class="space-y-2">
+                                <div id="progressLog" class="text-gray-500 text-sm flex items-center">
+                                    <svg class="w-4 h-4 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Siap untuk broadcasting
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Statistics -->
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h6><i class="bi bi-graph-up"></i> Statistik</h6>
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                        <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3">
+                            <h3 class="text-lg font-semibold text-white flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                Statistik
+                            </h3>
                         </div>
-                        <div class="card-body">
-                            <div class="row text-center">
-                                <div class="col-4">
-                                    <h5 id="totalSent" class="text-success">0</h5>
-                                    <small>Terkirim</small>
+                        
+                        <div class="p-4">
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div class="bg-green-50 rounded-lg p-3">
+                                    <div id="totalSent" class="text-2xl font-bold text-green-600">0</div>
+                                    <div class="text-xs text-green-700 font-medium">Terkirim</div>
                                 </div>
-                                <div class="col-4">
-                                    <h5 id="totalFailed" class="text-danger">0</h5>
-                                    <small>Gagal</small>
+                                <div class="bg-red-50 rounded-lg p-3">
+                                    <div id="totalFailed" class="text-2xl font-bold text-red-600">0</div>
+                                    <div class="text-xs text-red-700 font-medium">Gagal</div>
                                 </div>
-                                <div class="col-4">
-                                    <h5 id="totalContacts" class="text-info">0</h5>
-                                    <small>Total</small>
+                                <div class="bg-blue-50 rounded-lg p-3">
+                                    <div id="totalContacts" class="text-2xl font-bold text-blue-600">0</div>
+                                    <div class="text-xs text-blue-700 font-medium">Total</div>
                                 </div>
                             </div>
                         </div>
@@ -241,7 +391,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
 </body>

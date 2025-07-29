@@ -50,15 +50,15 @@ function saveToLocalStorage() {
     
     // Show indicators if data exists
     if (contacts.trim()) {
-        document.getElementById('contactsLoadedIndicator').style.display = 'inline-block';
+        document.getElementById('contactsLoadedIndicator').classList.remove('hidden');
     } else {
-        document.getElementById('contactsLoadedIndicator').style.display = 'none';
+        document.getElementById('contactsLoadedIndicator').classList.add('hidden');
     }
     
     if (message.trim()) {
-        document.getElementById('messageLoadedIndicator').style.display = 'inline-block';
+        document.getElementById('messageLoadedIndicator').classList.remove('hidden');
     } else {
-        document.getElementById('messageLoadedIndicator').style.display = 'none';
+        document.getElementById('messageLoadedIndicator').classList.add('hidden');
     }
 }
 
@@ -70,7 +70,7 @@ function loadFromLocalStorage() {
     
     if (contacts) {
         document.getElementById('contacts').value = contacts;
-        document.getElementById('contactsLoadedIndicator').style.display = 'inline-block';
+        document.getElementById('contactsLoadedIndicator').classList.remove('hidden');
         // Update contact counter
         const contactList = contacts.split('\n').filter(line => line.trim());
         stats.total = contactList.length;
@@ -79,7 +79,7 @@ function loadFromLocalStorage() {
     
     if (message) {
         document.getElementById('message').value = message;
-        document.getElementById('messageLoadedIndicator').style.display = 'inline-block';
+        document.getElementById('messageLoadedIndicator').classList.remove('hidden');
     }
     
     if (delay) {
@@ -120,8 +120,8 @@ function clearLocalStorage() {
         document.getElementById('delay').value = '2';
         
         // Hide indicators
-        document.getElementById('contactsLoadedIndicator').style.display = 'none';
-        document.getElementById('messageLoadedIndicator').style.display = 'none';
+        document.getElementById('contactsLoadedIndicator').classList.add('hidden');
+        document.getElementById('messageLoadedIndicator').classList.add('hidden');
         
         // Reset stats
         stats.total = 0;
@@ -202,15 +202,30 @@ function updateStats() {
 // Add log entry
 function addLogEntry(message, type = 'info') {
     const timestamp = new Date().toLocaleTimeString();
-    const icon = type === 'success' ? 'bi-check-circle text-success' : 
-                 type === 'error' ? 'bi-x-circle text-danger' : 
-                 'bi-info-circle text-info';
+    const iconColor = type === 'success' ? 'text-green-500' : 
+                     type === 'error' ? 'text-red-500' : 
+                     'text-blue-500';
+    
+    const iconSvg = type === 'success' ? 
+        `<svg class="w-4 h-4 ${iconColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>` :
+        type === 'error' ? 
+        `<svg class="w-4 h-4 ${iconColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>` :
+        `<svg class="w-4 h-4 ${iconColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>`;
     
     const logEntry = document.createElement('div');
-    logEntry.className = 'progress-item';
+    logEntry.className = 'progress-item flex items-start space-x-2 text-sm';
     logEntry.innerHTML = `
-        <small class="text-muted">${timestamp}</small><br>
-        <i class="bi ${icon}"></i> ${message}
+        <div class="flex-shrink-0 mt-0.5">${iconSvg}</div>
+        <div class="flex-1">
+            <div class="text-gray-500 text-xs">${timestamp}</div>
+            <div class="text-gray-700">${message}</div>
+        </div>
     `;
     
     progressLog.appendChild(logEntry);
@@ -221,8 +236,8 @@ function addLogEntry(message, type = 'info') {
 socket.on('qr', (qrDataURL) => {
     qrContainer.innerHTML = `
         <div class="text-center">
-            <img src="${qrDataURL}" alt="QR Code" class="img-fluid" style="max-width: 300px;">
-            <p class="mt-3">Scan QR Code dengan WhatsApp Anda</p>
+            <img src="${qrDataURL}" alt="QR Code" class="mx-auto max-w-xs rounded-lg shadow-lg">
+            <p class="mt-4 text-gray-600">Scan QR Code dengan WhatsApp Anda</p>
         </div>
     `;
 });
@@ -255,13 +270,18 @@ socket.on('broadcast-progress', (data) => {
 
 socket.on('broadcast-complete', (results) => {
     sendBtn.disabled = false;
-    sendBtn.innerHTML = '<i class="bi bi-send"></i> Mulai Broadcasting';
+    sendBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        </svg>
+        Mulai Broadcasting
+    `;
     
     addLogEntry(`Broadcasting selesai! ${stats.sent} berhasil, ${stats.failed} gagal`, 'info');
     
     // Hide progress section after 3 seconds
     setTimeout(() => {
-        progressSection.style.display = 'none';
+        progressSection.classList.add('hidden');
     }, 3000);
 });
 
@@ -286,7 +306,7 @@ broadcastForm.addEventListener('submit', async (e) => {
     updateStats();
     
     // Show progress section
-    progressSection.style.display = 'block';
+    progressSection.classList.remove('hidden');
     progressBar.style.width = '0%';
     progressText.textContent = `0 / ${stats.total}`;
     
@@ -295,7 +315,12 @@ broadcastForm.addEventListener('submit', async (e) => {
     
     // Disable send button
     sendBtn.disabled = true;
-    sendBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Mengirim...';
+    sendBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Mengirim...
+    `;
     
     addLogEntry('Memulai broadcasting...', 'info');
     
@@ -321,7 +346,12 @@ broadcastForm.addEventListener('submit', async (e) => {
         console.error('Broadcast error:', error);
         addLogEntry(`Error: ${error.message}`, 'error');
         sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="bi bi-send"></i> Mulai Broadcasting';
+        sendBtn.innerHTML = `
+            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            Mulai Broadcasting
+        `;
     }
 });
 
