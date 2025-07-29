@@ -40,14 +40,67 @@ npm start
 - Docker dan Docker Compose terinstall
 - Port 3000 tersedia
 
-#### Quick Start
+#### Production Mode
 ```bash
-# Build dan jalankan
+# Build dan jalankan untuk production
 docker compose up -d
 
 # Atau gunakan script
 # Windows:
 deploy.bat start
+
+# Linux/Mac:
+./deploy.sh start
+```
+
+#### Development Mode (Dengan Hot Reload)
+```bash
+# Build dan jalankan untuk development dengan auto-reload
+docker compose -f docker-compose.dev.yml up -d
+
+# Atau gunakan script development
+# Windows:
+dev.bat
+
+# Linux/Mac:
+./dev.sh
+
+# Commands via npm:
+npm run docker:start:dev    # Start development mode
+npm run docker:stop:dev     # Stop development mode
+npm run docker:logs:dev     # View development logs
+```
+
+## Development
+
+### Mode Development dengan Hot Reload
+Untuk development, gunakan konfigurasi khusus yang akan mendeteksi perubahan code secara real-time tanpa perlu rebuild container:
+
+```bash
+# Mode development (dengan nodemon + volume mounting)
+npm run docker:start:dev
+
+# View logs
+npm run docker:logs:dev
+
+# Stop development mode
+npm run docker:stop:dev
+```
+
+### Mengapa Perubahan Script Tidak Terdeteksi?
+
+**Masalah umum**: Saat menggunakan Docker, perubahan pada source code tidak terdeteksi karena:
+
+1. **File ter-copy ke container saat build** - Dockerfile menggunakan `COPY . .` yang meng-copy semua file ke dalam image
+2. **Container menjalankan file copy-an** - Bukan file asli dari host
+3. **Tidak ada volume mounting untuk source code** - Hanya data/session yang di-mount
+
+**Solusi**: 
+- Gunakan **Development Mode** (`docker-compose.dev.yml`) yang akan:
+  - Mount source code sebagai volume 
+  - Menggunakan nodemon untuk auto-reload
+  - Mendeteksi perubahan secara real-time
+  - Tidak perlu rebuild container setiap kali ada perubahan
 
 # Linux/Mac:
 chmod +x deploy.sh
