@@ -1,11 +1,16 @@
-const express = require('express');
-const { DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-const makeWASocket = require('@whiskeysockets/baileys').default;
-const QRCode = require('qrcode');
-const { Server } = require('socket.io');
-const http = require('http');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import makeWASocket from '@whiskeysockets/baileys';
+import QRCode from 'qrcode';
+import { Server } from 'socket.io';
+import http from 'http';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -36,8 +41,7 @@ async function connectToWhatsApp(sessionId, socket) {
     const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
     
     const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: true
+        auth: state
     });
 
     // Store session
