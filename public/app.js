@@ -1,5 +1,29 @@
 // Initialize Socket.IO
-const socket = io();
+// Detect if running behind reverse proxy
+const basePath = window.location.pathname.includes('/wablast/') 
+    ? '/wablast' 
+    : '';
+
+const socket = io({
+    path: basePath + '/socket.io',
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 10
+});
+
+// Debug connection
+socket.on('connect', () => {
+    console.log('Socket.IO connected:', socket.id);
+});
+
+socket.on('disconnect', (reason) => {
+    console.log('Socket.IO disconnected:', reason);
+});
+
+socket.on('connect_error', (error) => {
+    console.error('Socket.IO connection error:', error);
+});
 
 // Generate or get session ID from localStorage
 let sessionId = localStorage.getItem('wa_session_id');

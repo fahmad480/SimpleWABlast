@@ -13,7 +13,14 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    path: '/socket.io',
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling']
+});
 
 // Middleware
 app.use(express.static('public'));
