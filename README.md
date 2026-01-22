@@ -10,6 +10,7 @@ Aplikasi Node.js sederhana untuk WhatsApp broadcasting menggunakan Baileys Whats
 - **Disconnect Feature**: Tombol disconnect untuk memutus koneksi WhatsApp
 - **Local Storage**: Daftar kontak dan template pesan otomatis tersimpan di browser
 - **Broadcasting**: Kirim pesan ke multiple kontak sekaligus
+- **Media Upload**: Kirim gambar, video, audio, PDF, atau dokumen lainnya saat broadcasting
 - **Template Variables**: Support variable `{nama}` dan `{nomorhp}` dalam pesan
 - **Delay Control**: Pengaturan delay antar pesan
 - **Real-time Progress**: Monitor progress broadcasting secara real-time
@@ -153,6 +154,19 @@ npm run docker:logs     # View logs
   ```
   Halo {nama}, ini adalah pesan broadcast untuk nomor {nomorhp}
   ```
+
+- **Upload Media (Opsional)**: Lampirkan file untuk dikirim bersama pesan
+  - **Jenis File yang Didukung**:
+    - Gambar: JPG, PNG, GIF, WebP, dll
+    - Video: MP4, AVI, MKV, dll
+    - Audio: MP3, WAV, OGG, dll
+    - Dokumen: PDF, DOC, DOCX, XLS, XLSX, ZIP, dll
+  - **Ukuran Maksimal**: 50MB per file
+  - **Preview File**: Lihat nama file dan ukuran sebelum mengirim
+  - **Hapus File**: Tombol untuk menghapus file yang dipilih
+  - **Caption**: File akan dikirim dengan pesan sebagai caption (untuk gambar/video) atau teks terpisah (untuk dokumen)
+  
+  **Catatan**: File yang di-upload akan dikirim ke SEMUA kontak dalam daftar
 
 - **Delay**: Atur jeda waktu antar pesan (1-60 detik)
 

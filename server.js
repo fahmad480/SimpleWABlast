@@ -7,6 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,6 +26,26 @@ const io = new Server(server, {
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = './uploads';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 
 // Global variables - Store multiple sessions
 const sessions = new Map(); // sessionId -> { sock, isConnected, qr }
@@ -129,10 +150,10 @@ app.post('/disconnect/:sessionId', (req, res) => {
     }
 });
 
-app.post('/send-broadcast/:sessionId', async (req, res) => {
+app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, res) => {
     try {
         const sessionId = req.params.sessionId;
-        const { contacts, message, delay } = req.body;
+        const { contacts, message, delay, sendWithCaption } = req.body;
         const session = sessions.get(sessionId);
         
         if (!session?.isConnected || !session.sock) {
@@ -141,6 +162,8 @@ app.post('/send-broadcast/:sessionId', async (req, res) => {
 
         const contactList = contacts.split('\n').filter(line => line.trim());
         const results = [];
+        const mediaFile = req.file;
+        const useCaptionMode = sendWithCaption === 'true';
         
         for (let i = 0; i < contactList.length; i++) {
             const contact = contactList[i].trim();
@@ -171,12 +194,88 @@ app.post('/send-broadcast/:sessionId', async (req, res) => {
                 
                 const jid = formattedNumber + '@s.whatsapp.net';
                 
-                await session.sock.sendMessage(jid, { text: personalizedMessage });
+                // Send message with or without media
+                if (mediaFile) {
+                    const mediaBuffer = fs.readFileSync(mediaFile.path);
+                    const mimeType = mediaFile.mimetype;
+                    
+                    if (useCaptionMode) {
+                        // Mode 1: Send file with caption (1 balloon)
+                        let messageContent;
+                        
+                        if (mimeType.startsWith('image/')) {
+                            messageContent = {
+                                image: mediaBuffer,
+                                caption: personalizedMessage
+                            };
+                        } else if (mimeType.startsWith('video/')) {
+                            messageContent = {
+                                video: mediaBuffer,
+                                caption: personalizedMessage,
+                                fileName: mediaFile.originalname
+                            };
+                        } else if (mimeType.startsWith('audio/')) {
+                            // Audio doesn't support caption, send text first then audio
+                            await session.sock.sendMessage(jid, { text: personalizedMessage });
+                            messageContent = {
+                                audio: mediaBuffer,
+                                mimetype: mimeType,
+                                fileName: mediaFile.originalname
+                            };
+                        } else {
+                            // Document (PDF, DOC, etc.)
+                            messageContent = {
+                                document: mediaBuffer,
+                                mimetype: mimeType,
+                                fileName: mediaFile.originalname,
+                                caption: personalizedMessage
+                            };
+                        }
+                        
+                        await session.sock.sendMessage(jid, messageContent);
+                    } else {
+                        // Mode 2: Send text and file separately (2 balloons)
+                        // Send text first
+                        await session.sock.sendMessage(jid, { text: personalizedMessage });
+                        
+                        // Small delay between messages
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // Then send file
+                        let fileContent;
+                        if (mimeType.startsWith('image/')) {
+                            fileContent = {
+                                image: mediaBuffer
+                            };
+                        } else if (mimeType.startsWith('video/')) {
+                            fileContent = {
+                                video: mediaBuffer,
+                                fileName: mediaFile.originalname
+                            };
+                        } else if (mimeType.startsWith('audio/')) {
+                            fileContent = {
+                                audio: mediaBuffer,
+                                mimetype: mimeType,
+                                fileName: mediaFile.originalname
+                            };
+                        } else {
+                            fileContent = {
+                                document: mediaBuffer,
+                                mimetype: mimeType,
+                                fileName: mediaFile.originalname
+                            };
+                        }
+                        
+                        await session.sock.sendMessage(jid, fileContent);
+                    }
+                } else {
+                    await session.sock.sendMessage(jid, { text: personalizedMessage });
+                }
                 
                 results.push({ 
                     contact: `${nama} (${nomorhp})`, 
                     status: 'success', 
-                    message: 'Pesan terkirim' 
+                    message: mediaFile ? 'Pesan dengan file terkirim' : 'Pesan terkirim' 
                 });
                 
                 // Emit progress to client
@@ -210,11 +309,20 @@ app.post('/send-broadcast/:sessionId', async (req, res) => {
             }
         }
         
+        // Cleanup uploaded file after broadcast
+        if (mediaFile && fs.existsSync(mediaFile.path)) {
+            fs.unlinkSync(mediaFile.path);
+        }
+        
         io.emit('broadcast-complete', results);
         res.json({ success: true, results });
         
     } catch (error) {
         console.error('Broadcast error:', error);
+        // Cleanup uploaded file on error
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
         res.status(500).json({ error: error.message });
     }
 });

@@ -20,6 +20,7 @@
     "@heroicons/react": "^2.2.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "express": "^4.21.2",
+    "multer": "^2.0.0-rc.4",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1"
   },

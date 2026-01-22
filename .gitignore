@@ -60,6 +60,9 @@ auth_info_baileys/
 # Browser sessions
 sessions/
 
+# Uploaded files (temporary storage)
+uploads/
+
 # OS generated files
 .DS_Store
 .DS_Store?

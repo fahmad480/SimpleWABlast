@@ -316,6 +316,8 @@ broadcastForm.addEventListener('submit', async (e) => {
     const contacts = document.getElementById('contacts').value.trim();
     const message = document.getElementById('message').value.trim();
     const delay = parseInt(document.getElementById('delay').value) || 2;
+    const mediaFile = document.getElementById('mediaFile').files[0];
+    const sendWithCaption = document.getElementById('sendWithCaption').checked;
     
     if (!contacts || !message) {
         alert('Mohon isi daftar kontak dan template pesan!');
@@ -346,19 +348,23 @@ broadcastForm.addEventListener('submit', async (e) => {
         Mengirim...
     `;
     
-    addLogEntry('Memulai broadcasting...', 'info');
+    const sendMode = mediaFile ? (sendWithCaption ? 'dengan caption' : 'terpisah') : '';
+    addLogEntry(mediaFile ? `Memulai broadcasting dengan file: ${mediaFile.name} (${sendMode})...` : 'Memulai broadcasting...', 'info');
     
     try {
+        // Use FormData to handle file upload
+        const formData = new FormData();
+        formData.append('contacts', contacts);
+        formData.append('message', message);
+        formData.append('delay', delay);
+        formData.append('sendWithCaption', sendWithCaption);
+        if (mediaFile) {
+            formData.append('mediaFile', mediaFile);
+        }
+        
         const response = await fetch(`${basePath}/send-broadcast/${sessionId}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contacts,
-                message,
-                delay
-            })
+            body: formData
         });
         
         if (!response.ok) {
@@ -437,3 +443,53 @@ document.getElementById('disconnectBtn').addEventListener('click', async () => {
 
 // Initialize app
 checkStatus();
+
+// File upload handlers
+const mediaFileInput = document.getElementById('mediaFile');
+const filePreview = document.getElementById('filePreview');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const removeFileBtn = document.getElementById('removeFileBtn');
+const sendModeOption = document.getElementById('sendModeOption');
+
+mediaFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        // Validate file size (50MB limit)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            alert('Ukuran file terlalu besar! Maksimal 50MB');
+            mediaFileInput.value = '';
+            filePreview.classList.add('hidden');
+            sendModeOption.classList.add('hidden');
+            return;
+        }
+        
+        // Show file preview
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        filePreview.classList.remove('hidden');
+        sendModeOption.classList.remove('hidden');
+        
+        addLogEntry(`File dipilih: ${file.name} (${formatFileSize(file.size)})`, 'info');
+    } else {
+        filePreview.classList.add('hidden');
+        sendModeOption.classList.add('hidden');
+    }
+});
+
+removeFileBtn.addEventListener('click', () => {
+    mediaFileInput.value = '';
+    filePreview.classList.add('hidden');
+    sendModeOption.classList.add('hidden');
+    addLogEntry('File dihapus', 'info');
+});
+
+// Format file size helper
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
