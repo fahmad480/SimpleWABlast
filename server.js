@@ -1,6 +1,5 @@
 import express from 'express';
-import { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
-import makeWASocket from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import { Server } from 'socket.io';
 import http from 'http';

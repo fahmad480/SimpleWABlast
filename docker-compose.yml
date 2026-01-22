@@ -14,7 +14,7 @@ services:
       - ./package.json:/app/package.json
     environment:
       - NODE_ENV=development
-    restart: unless-stopped
+    restart: always
 
 networks:
   default:

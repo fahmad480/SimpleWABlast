@@ -16,7 +16,7 @@ services:
     environment:
       - NODE_ENV=development
     command: npm run dev
-    restart: unless-stopped
+    restart: always
 
 networks:
   default:
