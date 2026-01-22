@@ -17,6 +17,7 @@
     "docker:logs:dev": "docker compose -f docker-compose.dev.yml logs -f whatsapp-blast-dev"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "express": "^4.21.2",
     "qrcode": "^1.5.4",

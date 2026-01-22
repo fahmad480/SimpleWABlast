@@ -165,7 +165,7 @@ function clearSession() {
 // Check connection status on load
 async function checkStatus() {
     try {
-        const response = await fetch(`/status/${sessionId}`);
+        const response = await fetch(`${basePath}/status/${sessionId}`);
         const data = await response.json();
         
         if (data.connected && data.user) {
@@ -349,7 +349,7 @@ broadcastForm.addEventListener('submit', async (e) => {
     addLogEntry('Memulai broadcasting...', 'info');
     
     try {
-        const response = await fetch(`/send-broadcast/${sessionId}`, {
+        const response = await fetch(`${basePath}/send-broadcast/${sessionId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -412,7 +412,7 @@ document.getElementById('clearSessionBtn').addEventListener('click', clearSessio
 document.getElementById('disconnectBtn').addEventListener('click', async () => {
     if (confirm('Apakah Anda yakin ingin memutus koneksi WhatsApp?')) {
         try {
-            const response = await fetch(`/disconnect/${sessionId}`, {
+            const response = await fetch(`${basePath}/disconnect/${sessionId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
