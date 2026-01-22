@@ -46,6 +46,7 @@ const statusText = document.getElementById('statusText');
 const userInfo = document.getElementById('userInfo');
 const broadcastForm = document.getElementById('broadcastForm');
 const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
 const progressSection = document.getElementById('progressSection');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
@@ -294,6 +295,7 @@ socket.on('broadcast-progress', (data) => {
 
 socket.on('broadcast-complete', (results) => {
     sendBtn.disabled = false;
+    stopBtn.classList.add('hidden');
     sendBtn.innerHTML = `
         <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
@@ -307,6 +309,20 @@ socket.on('broadcast-complete', (results) => {
     setTimeout(() => {
         progressSection.classList.add('hidden');
     }, 3000);
+});
+
+socket.on('broadcast-stopped', (data) => {
+    sendBtn.disabled = false;
+    stopBtn.classList.add('hidden');
+    sendBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        </svg>
+        Mulai Broadcasting
+    `;
+    
+    addLogEntry(`⏸️ Broadcasting dihentikan di ${data.at} dari ${data.total} kontak`, 'error');
+    addLogEntry(`📊 Total: ${stats.sent} berhasil, ${stats.failed} gagal`, 'info');
 });
 
 // Form submission
@@ -339,8 +355,9 @@ broadcastForm.addEventListener('submit', async (e) => {
     // Clear previous logs
     progressLog.innerHTML = '';
     
-    // Disable send button
+    // Disable send button and show stop button
     sendBtn.disabled = true;
+    stopBtn.classList.remove('hidden');
     sendBtn.innerHTML = `
         <svg class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -376,12 +393,22 @@ broadcastForm.addEventListener('submit', async (e) => {
         console.error('Broadcast error:', error);
         addLogEntry(`Error: ${error.message}`, 'error');
         sendBtn.disabled = false;
+        stopBtn.classList.add('hidden');
         sendBtn.innerHTML = `
             <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
             </svg>
             Mulai Broadcasting
         `;
+    }
+});
+
+// Stop broadcast button
+stopBtn.addEventListener('click', () => {
+    if (confirm('Apakah Anda yakin ingin menghentikan broadcasting?')) {
+        socket.emit('stop-broadcast', sessionId);
+        addLogEntry('Mengirim perintah stop...', 'info');
+        stopBtn.disabled = true;
     }
 });
 

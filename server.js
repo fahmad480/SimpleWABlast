@@ -49,6 +49,7 @@ const upload = multer({
 
 // Global variables - Store multiple sessions
 const sessions = new Map(); // sessionId -> { sock, isConnected, qr }
+const broadcastStatus = new Map(); // sessionId -> { isRunning, shouldStop }
 
 // Generate session directory
 function getSessionFolder(sessionId) {
@@ -160,12 +161,26 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
             return res.status(400).json({ error: 'WhatsApp not connected' });
         }
 
+        // Set broadcast status
+        broadcastStatus.set(sessionId, { isRunning: true, shouldStop: false });
+
         const contactList = contacts.split('\n').filter(line => line.trim());
         const results = [];
         const mediaFile = req.file;
         const useCaptionMode = sendWithCaption === 'true';
         
         for (let i = 0; i < contactList.length; i++) {
+            // Check if broadcast should stop
+            const status = broadcastStatus.get(sessionId);
+            if (status?.shouldStop) {
+                io.emit('broadcast-stopped', { 
+                    stopped: true, 
+                    at: i, 
+                    total: contactList.length,
+                    message: 'Broadcasting dihentikan oleh user'
+                });
+                break;
+            }
             const contact = contactList[i].trim();
             if (!contact) continue;
             
@@ -309,6 +324,9 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
             }
         }
         
+        // Cleanup broadcast status
+        broadcastStatus.delete(sessionId);
+        
         // Cleanup uploaded file after broadcast
         if (mediaFile && fs.existsSync(mediaFile.path)) {
             fs.unlinkSync(mediaFile.path);
@@ -319,6 +337,8 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
         
     } catch (error) {
         console.error('Broadcast error:', error);
+        // Cleanup broadcast status
+        broadcastStatus.delete(req.params.sessionId);
         // Cleanup uploaded file on error
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
@@ -330,6 +350,15 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
 // Socket.IO events
 io.on('connection', (socket) => {
     console.log('Client connected');
+    
+    socket.on('stop-broadcast', (sessionId) => {
+        console.log('Stop broadcast requested for session:', sessionId);
+        const status = broadcastStatus.get(sessionId);
+        if (status?.isRunning) {
+            status.shouldStop = true;
+            broadcastStatus.set(sessionId, status);
+        }
+    });
     
     socket.on('init-session', (sessionId) => {
         console.log('Initializing session:', sessionId);
