@@ -520,3 +520,281 @@ function formatFileSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
+
+// =====================================================
+// GROUP INVITE FUNCTIONALITY
+// =====================================================
+
+// Tab switching functionality
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Remove active state from all tabs
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active', 'border-blue-500', 'text-blue-600');
+            b.classList.add('border-transparent', 'text-gray-500');
+        });
+        
+        // Add active state to clicked tab
+        btn.classList.add('active', 'border-blue-500', 'text-blue-600');
+        btn.classList.remove('border-transparent', 'text-gray-500');
+        
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        // Show selected tab content
+        const tabId = btn.getAttribute('data-tab');
+        const tabContent = document.getElementById(`${tabId}-tab`);
+        if (tabContent) {
+            tabContent.classList.remove('hidden');
+        }
+    });
+});
+
+// Group Invite DOM Elements
+const groupInviteForm = document.getElementById('groupInviteForm');
+const groupSelect = document.getElementById('groupSelect');
+const inviteContacts = document.getElementById('inviteContacts');
+const inviteDelay = document.getElementById('inviteDelay');
+const inviteBtn = document.getElementById('inviteBtn');
+const stopInviteBtn = document.getElementById('stopInviteBtn');
+const refreshGroupsBtn = document.getElementById('refreshGroupsBtn');
+const groupCount = document.getElementById('groupCount');
+const inviteContactCount = document.getElementById('inviteContactCount');
+
+// Invite Statistics
+let inviteStats = {
+    success: 0,
+    failed: 0,
+    total: 0
+};
+
+// Fetch groups from server
+async function fetchGroups() {
+    try {
+        refreshGroupsBtn.innerHTML = `
+            <svg class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Loading...
+        `;
+        
+        const response = await fetch(`${basePath}/groups/${sessionId}`);
+        const data = await response.json();
+        
+        if (data.success && data.groups) {
+            groupSelect.innerHTML = '<option value="">-- Pilih Grup --</option>';
+            
+            // Sort: admin groups first
+            const sortedGroups = data.groups.sort((a, b) => {
+                if (a.isAdmin && !b.isAdmin) return -1;
+                if (!a.isAdmin && b.isAdmin) return 1;
+                return a.subject.localeCompare(b.subject);
+            });
+            
+            sortedGroups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                const adminBadge = group.isAdmin ? '👑 ' : '';
+                const memberCount = `(${group.participants} anggota)`;
+                option.textContent = `${adminBadge}${group.subject} ${memberCount}`;
+                option.disabled = !group.isAdmin;
+                groupSelect.appendChild(option);
+            });
+            
+            const adminGroupCount = data.groups.filter(g => g.isAdmin).length;
+            groupCount.textContent = `${adminGroupCount} grup (admin)`;
+            
+            addLogEntry(`Berhasil memuat ${data.groups.length} grup (${adminGroupCount} sebagai admin)`, 'success');
+        } else {
+            throw new Error(data.error || 'Gagal memuat grup');
+        }
+    } catch (error) {
+        console.error('Error fetching groups:', error);
+        addLogEntry(`Error memuat grup: ${error.message}`, 'error');
+        groupSelect.innerHTML = '<option value="">-- Error memuat grup --</option>';
+    } finally {
+        refreshGroupsBtn.innerHTML = `
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh
+        `;
+    }
+}
+
+// Refresh groups button click
+refreshGroupsBtn.addEventListener('click', fetchGroups);
+
+// Contact counter for invite
+inviteContacts.addEventListener('input', (e) => {
+    const contacts = e.target.value.split('\n').filter(line => line.trim());
+    inviteContactCount.textContent = contacts.length;
+    
+    // Save to localStorage
+    localStorage.setItem('wa_invite_contacts', e.target.value);
+});
+
+// Load saved invite contacts
+function loadInviteData() {
+    const savedContacts = localStorage.getItem('wa_invite_contacts');
+    if (savedContacts) {
+        inviteContacts.value = savedContacts;
+        const contacts = savedContacts.split('\n').filter(line => line.trim());
+        inviteContactCount.textContent = contacts.length;
+        document.getElementById('inviteContactsLoadedIndicator').classList.remove('hidden');
+    }
+    
+    const savedDelay = localStorage.getItem('wa_invite_delay');
+    if (savedDelay) {
+        inviteDelay.value = savedDelay;
+    }
+}
+
+// Save invite delay
+inviteDelay.addEventListener('input', (e) => {
+    localStorage.setItem('wa_invite_delay', e.target.value);
+});
+
+// Socket.IO Event Handlers for Invite
+socket.on('invite-progress', (data) => {
+    const percentage = (data.current / data.total) * 100;
+    progressBar.style.width = `${percentage}%`;
+    progressText.textContent = `${data.current} / ${data.total}`;
+    
+    if (data.status === 'success') {
+        inviteStats.success++;
+        addLogEntry(`✓ ${data.contact} - ${data.message}`, 'success');
+    } else {
+        inviteStats.failed++;
+        addLogEntry(`✗ ${data.contact} - ${data.error || data.message}`, 'error');
+    }
+    
+    // Update stats display
+    totalSent.textContent = inviteStats.success;
+    totalFailed.textContent = inviteStats.failed;
+});
+
+socket.on('invite-complete', (results) => {
+    inviteBtn.disabled = false;
+    stopInviteBtn.classList.add('hidden');
+    inviteBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+        </svg>
+        Mulai Invite
+    `;
+    
+    addLogEntry(`Invite selesai! ${inviteStats.success} berhasil, ${inviteStats.failed} gagal`, 'info');
+});
+
+socket.on('invite-stopped', (data) => {
+    inviteBtn.disabled = false;
+    stopInviteBtn.classList.add('hidden');
+    inviteBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+        </svg>
+        Mulai Invite
+    `;
+    
+    addLogEntry(`⏸️ Invite dihentikan di ${data.at} dari ${data.total} nomor`, 'error');
+    addLogEntry(`📊 Total: ${inviteStats.success} berhasil, ${inviteStats.failed} gagal`, 'info');
+});
+
+// Group Invite Form Submission
+groupInviteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const selectedGroup = groupSelect.value;
+    const contacts = inviteContacts.value.trim();
+    const delay = parseInt(inviteDelay.value) || 3;
+    
+    if (!selectedGroup) {
+        alert('Mohon pilih grup terlebih dahulu!');
+        return;
+    }
+    
+    if (!contacts) {
+        alert('Mohon isi daftar nomor yang akan di-invite!');
+        return;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('wa_invite_contacts', contacts);
+    localStorage.setItem('wa_invite_delay', delay);
+    
+    // Reset statistics
+    inviteStats = { 
+        success: 0, 
+        failed: 0, 
+        total: contacts.split('\n').filter(line => line.trim()).length 
+    };
+    totalSent.textContent = 0;
+    totalFailed.textContent = 0;
+    totalContacts.textContent = inviteStats.total;
+    
+    // Show progress section
+    progressSection.classList.remove('hidden');
+    progressBar.style.width = '0%';
+    progressText.textContent = `0 / ${inviteStats.total}`;
+    
+    // Clear previous logs
+    progressLog.innerHTML = '';
+    
+    // Disable invite button and show stop button
+    inviteBtn.disabled = true;
+    stopInviteBtn.classList.remove('hidden');
+    inviteBtn.innerHTML = `
+        <svg class="w-5 h-5 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Menginvite...
+    `;
+    
+    addLogEntry(`Memulai invite ke grup: ${groupSelect.options[groupSelect.selectedIndex].text}...`, 'info');
+    
+    try {
+        const response = await fetch(`${basePath}/invite-to-group/${sessionId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                groupId: selectedGroup,
+                contacts: contacts,
+                delay: delay
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Terjadi kesalahan');
+        }
+        
+    } catch (error) {
+        console.error('Invite error:', error);
+        addLogEntry(`Error: ${error.message}`, 'error');
+        inviteBtn.disabled = false;
+        stopInviteBtn.classList.add('hidden');
+        inviteBtn.innerHTML = `
+            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+            </svg>
+            Mulai Invite
+        `;
+    }
+});
+
+// Stop invite button
+stopInviteBtn.addEventListener('click', () => {
+    if (confirm('Apakah Anda yakin ingin menghentikan invite?')) {
+        socket.emit('stop-invite', sessionId);
+        addLogEntry('Mengirim perintah stop...', 'info');
+        stopInviteBtn.disabled = true;
+    }
+});
+
+// Load invite data on page load
+loadInviteData();

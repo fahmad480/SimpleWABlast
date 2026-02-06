@@ -347,9 +347,192 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
     }
 });
 
+// Get groups list for specific session
+app.get('/groups/:sessionId', async (req, res) => {
+    try {
+        const sessionId = req.params.sessionId;
+        const session = sessions.get(sessionId);
+        
+        if (!session?.isConnected || !session.sock) {
+            return res.status(400).json({ error: 'WhatsApp not connected' });
+        }
+        
+        const groups = await session.sock.groupFetchAllParticipating();
+        const myJid = session.sock.user.id;
+        // Extract phone number from JID (format: 628xxx:xx@s.whatsapp.net or 628xxx@s.whatsapp.net)
+        const myNumber = myJid.split('@')[0].split(':')[0];
+        
+        console.log('My JID:', myJid, 'My Number:', myNumber);
+        
+        const groupList = Object.values(groups).map(group => {
+            // Check if current user is admin in this group
+            const isAdmin = group.participants.some(p => {
+                const participantNumber = p.id.split('@')[0].split(':')[0];
+                const isMe = participantNumber === myNumber;
+                const hasAdminRole = p.admin === 'admin' || p.admin === 'superadmin';
+                return isMe && hasAdminRole;
+            });
+            
+            return {
+                id: group.id,
+                subject: group.subject,
+                participants: group.participants.length,
+                isAdmin: isAdmin
+            };
+        });
+        
+        res.json({ success: true, groups: groupList });
+    } catch (error) {
+        console.error('Error fetching groups:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Invite members to group
+app.post('/invite-to-group/:sessionId', async (req, res) => {
+    try {
+        const sessionId = req.params.sessionId;
+        const { groupId, contacts, delay } = req.body;
+        const session = sessions.get(sessionId);
+        
+        if (!session?.isConnected || !session.sock) {
+            return res.status(400).json({ error: 'WhatsApp not connected' });
+        }
+        
+        // Set invite status
+        broadcastStatus.set(`invite_${sessionId}`, { isRunning: true, shouldStop: false });
+        
+        const contactList = contacts.split('\n').filter(line => line.trim());
+        const results = [];
+        
+        for (let i = 0; i < contactList.length; i++) {
+            // Check if invite should stop
+            const status = broadcastStatus.get(`invite_${sessionId}`);
+            if (status?.shouldStop) {
+                io.emit('invite-stopped', { 
+                    stopped: true, 
+                    at: i, 
+                    total: contactList.length,
+                    message: 'Invite dihentikan oleh user'
+                });
+                break;
+            }
+            
+            const contact = contactList[i].trim();
+            if (!contact) continue;
+            
+            try {
+                // Format phone number
+                let formattedNumber = contact.replace(/[^0-9]/g, '');
+                if (!formattedNumber.startsWith('62')) {
+                    if (formattedNumber.startsWith('0')) {
+                        formattedNumber = '62' + formattedNumber.substring(1);
+                    } else {
+                        formattedNumber = '62' + formattedNumber;
+                    }
+                }
+                
+                const jid = formattedNumber + '@s.whatsapp.net';
+                
+                // Add participant to group
+                const response = await session.sock.groupParticipantsUpdate(
+                    groupId,
+                    [jid],
+                    'add'
+                );
+                
+                const result = response[0];
+                let statusMessage = 'Berhasil di-invite';
+                let statusType = 'success';
+                
+                if (result.status === '403') {
+                    statusMessage = 'Gagal: Tidak punya izin';
+                    statusType = 'error';
+                } else if (result.status === '408') {
+                    statusMessage = 'Gagal: Nomor baru keluar dari grup';
+                    statusType = 'error';
+                } else if (result.status === '409') {
+                    statusMessage = 'Gagal: Sudah ada di grup';
+                    statusType = 'error';
+                } else if (result.status === '401') {
+                    statusMessage = 'Gagal: Nomor tidak valid/tidak ada WA';
+                    statusType = 'error';
+                } else if (result.status !== '200' && result.status !== 200) {
+                    statusMessage = `Gagal: Status ${result.status}`;
+                    statusType = 'error';
+                }
+                
+                results.push({ 
+                    contact: formattedNumber, 
+                    status: statusType, 
+                    message: statusMessage 
+                });
+                
+                // Emit progress to client
+                io.emit('invite-progress', { 
+                    current: i + 1, 
+                    total: contactList.length, 
+                    contact: formattedNumber,
+                    status: statusType,
+                    message: statusMessage
+                });
+                
+            } catch (error) {
+                console.error('Error inviting member:', error);
+                
+                let errorMessage = error.message;
+                if (error.message.includes('not-authorized')) {
+                    errorMessage = 'Anda bukan admin grup';
+                } else if (error.message.includes('item-not-found')) {
+                    errorMessage = 'Nomor tidak terdaftar di WhatsApp';
+                }
+                
+                results.push({ 
+                    contact: contact, 
+                    status: 'error', 
+                    message: errorMessage 
+                });
+                
+                io.emit('invite-progress', { 
+                    current: i + 1, 
+                    total: contactList.length, 
+                    contact: contact,
+                    status: 'error',
+                    error: errorMessage
+                });
+            }
+            
+            // Delay between invites
+            if (i < contactList.length - 1 && delay > 0) {
+                await new Promise(resolve => setTimeout(resolve, delay * 1000));
+            }
+        }
+        
+        // Cleanup invite status
+        broadcastStatus.delete(`invite_${sessionId}`);
+        
+        io.emit('invite-complete', results);
+        res.json({ success: true, results });
+        
+    } catch (error) {
+        console.error('Invite error:', error);
+        broadcastStatus.delete(`invite_${req.params.sessionId}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Socket.IO events
 io.on('connection', (socket) => {
     console.log('Client connected');
+    
+    socket.on('stop-invite', (sessionId) => {
+        console.log('Stop invite requested for session:', sessionId);
+        const status = broadcastStatus.get(`invite_${sessionId}`);
+        if (status?.isRunning) {
+            status.shouldStop = true;
+            broadcastStatus.set(`invite_${sessionId}`, status);
+        }
+    });
     
     socket.on('stop-broadcast', (sessionId) => {
         console.log('Stop broadcast requested for session:', sessionId);
