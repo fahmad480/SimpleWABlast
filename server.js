@@ -212,11 +212,17 @@ app.post('/clear-session/:sessionId', (req, res) => {
 app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, res) => {
     try {
         const sessionId = req.params.sessionId;
-        const { contacts, message, delay, sendWithCaption } = req.body;
+        const { contacts, message, delay, sendWithCaption, templateMode } = req.body;
         const session = sessions.get(sessionId);
         
         if (!session?.isConnected || !session.sock) {
             return res.status(400).json({ error: 'WhatsApp not connected' });
+        }
+        
+        // Validate delay
+        const delayNum = parseInt(delay) || 2;
+        if (delayNum < 1 || delayNum > 120) {
+            return res.status(400).json({ error: 'Delay harus antara 1-120 detik' });
         }
 
         // Set broadcast status
@@ -226,6 +232,10 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
         const results = [];
         const mediaFile = req.file;
         const useCaptionMode = sendWithCaption === 'true';
+        
+        // Parse multiple templates (split by ---)
+        const templates = message.split('---').map(t => t.trim()).filter(t => t.length > 0);
+        console.log(`Found ${templates.length} template(s), mode: ${templateMode}`);
         
         for (let i = 0; i < contactList.length; i++) {
             // Check if broadcast should stop
@@ -250,8 +260,19 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
             }
             
             try {
+                // Select template based on mode
+                let selectedTemplate;
+                if (templateMode === 'random') {
+                    // Random selection
+                    const randomIndex = Math.floor(Math.random() * templates.length);
+                    selectedTemplate = templates[randomIndex];
+                } else {
+                    // Sequential selection (default)
+                    selectedTemplate = templates[i % templates.length];
+                }
+                
                 // Replace variables in message (case-insensitive, allow spaces inside braces)
-                let personalizedMessage = message
+                let personalizedMessage = selectedTemplate
                     .replace(/\{\s*nama\s*\}/gi, nama)
                     .replace(/\{\s*nomorhp\s*\}/gi, nomorhp);
                 
@@ -360,8 +381,8 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
                 });
                 
                 // Delay between messages
-                if (i < contactList.length - 1 && delay > 0) {
-                    await new Promise(resolve => setTimeout(resolve, delay * 1000));
+                if (i < contactList.length - 1 && delayNum > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delayNum * 1000));
                 }
                 
             } catch (error) {
@@ -456,6 +477,12 @@ app.post('/invite-to-group/:sessionId', async (req, res) => {
         
         if (!session?.isConnected || !session.sock) {
             return res.status(400).json({ error: 'WhatsApp not connected' });
+        }
+        
+        // Validate delay
+        const delayNum = parseInt(delay) || 3;
+        if (delayNum < 1 || delayNum > 120) {
+            return res.status(400).json({ error: 'Delay harus antara 1-120 detik' });
         }
         
         // Set invite status
@@ -562,8 +589,8 @@ app.post('/invite-to-group/:sessionId', async (req, res) => {
             }
             
             // Delay between invites
-            if (i < contactList.length - 1 && delay > 0) {
-                await new Promise(resolve => setTimeout(resolve, delay * 1000));
+            if (i < contactList.length - 1 && delayNum > 0) {
+                await new Promise(resolve => setTimeout(resolve, delayNum * 1000));
             }
         }
         
