@@ -48,7 +48,7 @@ const upload = multer({
 });
 
 // Global variables - Store multiple sessions
-const sessions = new Map(); // sessionId -> { sock, isConnected, qr }
+const sessions = new Map(); // sessionId -> { sock, isConnected, qr, socketClient }
 const broadcastStatus = new Map(); // sessionId -> { isRunning, shouldStop }
 
 // Generate session directory
@@ -64,7 +64,7 @@ function getSessionFolder(sessionId) {
 }
 
 // Initialize WhatsApp connection for specific session
-async function connectToWhatsApp(sessionId, socket) {
+async function connectToWhatsApp(sessionId, socketClient) {
     const sessionFolder = getSessionFolder(sessionId);
     const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
     
@@ -72,11 +72,12 @@ async function connectToWhatsApp(sessionId, socket) {
         auth: state
     });
 
-    // Store session
+    // Store session with socket client reference
     sessions.set(sessionId, {
         sock: sock,
         isConnected: false,
-        qr: null
+        qr: null,
+        socketClient: socketClient
     });
 
     sock.ev.on('connection.update', (update) => {
@@ -86,29 +87,57 @@ async function connectToWhatsApp(sessionId, socket) {
         if (newQr) {
             session.qr = newQr;
             sessions.set(sessionId, session);
+            console.log('QR Code generated for session:', sessionId);
             QRCode.toDataURL(newQr, (err, url) => {
                 if (!err) {
-                    socket.emit('qr', url);
+                    // Emit to the stored socket client
+                    if (session.socketClient && session.socketClient.connected) {
+                        session.socketClient.emit('qr', url);
+                        console.log('QR Code sent to client for session:', sessionId);
+                    } else {
+                        console.warn('Socket client not connected for session:', sessionId);
+                    }
+                } else {
+                    console.error('Error generating QR code:', err);
                 }
             });
         }
 
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+            const statusCode = (lastDisconnect?.error)?.output?.statusCode;
             console.log('Connection closed due to ', lastDisconnect?.error, ', reconnecting ', shouldReconnect);
             
             session.isConnected = false;
             sessions.set(sessionId, session);
-            socket.emit('disconnected');
+            if (session.socketClient && session.socketClient.connected) {
+                session.socketClient.emit('disconnected');
+            }
             
-            if (shouldReconnect) {
-                connectToWhatsApp(sessionId, socket);
+            // If 401 error (unauthorized), clear the session and start fresh
+            if (statusCode === 401) {
+                console.log('401 Unauthorized - Clearing corrupted session:', sessionId);
+                const sessionFolder = getSessionFolder(sessionId);
+                try {
+                    if (fs.existsSync(sessionFolder)) {
+                        fs.rmSync(sessionFolder, { recursive: true, force: true });
+                        console.log('Session folder deleted:', sessionFolder);
+                    }
+                    // Start fresh connection
+                    connectToWhatsApp(sessionId, session.socketClient);
+                } catch (err) {
+                    console.error('Error clearing session:', err);
+                }
+            } else if (shouldReconnect) {
+                connectToWhatsApp(sessionId, session.socketClient);
             }
         } else if (connection === 'open') {
             console.log('WhatsApp connected successfully for session:', sessionId);
             session.isConnected = true;
             sessions.set(sessionId, session);
-            socket.emit('connected', sock.user);
+            if (session.socketClient && session.socketClient.connected) {
+                session.socketClient.emit('connected', sock.user);
+            }
         }
     });
 
@@ -147,6 +176,35 @@ app.post('/disconnect/:sessionId', (req, res) => {
         }
     } catch (error) {
         console.error('Disconnect error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/clear-session/:sessionId', (req, res) => {
+    try {
+        const sessionId = req.params.sessionId;
+        const sessionFolder = getSessionFolder(sessionId);
+        
+        // Remove from memory
+        const session = sessions.get(sessionId);
+        if (session?.sock) {
+            try {
+                session.sock.end();
+            } catch (e) {
+                console.log('Error ending socket:', e.message);
+            }
+        }
+        sessions.delete(sessionId);
+        
+        // Delete session folder
+        if (fs.existsSync(sessionFolder)) {
+            fs.rmSync(sessionFolder, { recursive: true, force: true });
+            console.log('Session folder deleted:', sessionFolder);
+        }
+        
+        res.json({ success: true, message: 'Session cleared successfully' });
+    } catch (error) {
+        console.error('Clear session error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -192,10 +250,10 @@ app.post('/send-broadcast/:sessionId', upload.single('mediaFile'), async (req, r
             }
             
             try {
-                // Replace variables in message
+                // Replace variables in message (case-insensitive, allow spaces inside braces)
                 let personalizedMessage = message
-                    .replace(/{nama}/g, nama)
-                    .replace(/{nomorhp}/g, nomorhp);
+                    .replace(/\{\s*nama\s*\}/gi, nama)
+                    .replace(/\{\s*nomorhp\s*\}/gi, nomorhp);
                 
                 // Format phone number (remove special characters and add country code if needed)
                 let formattedNumber = nomorhp.replace(/[^0-9]/g, '');
@@ -377,7 +435,8 @@ app.get('/groups/:sessionId', async (req, res) => {
                 id: group.id,
                 subject: group.subject,
                 participants: group.participants.length,
-                isAdmin: isAdmin
+                // isAdmin: isAdmin
+                isAdmin: true // For testing purposes, assume user is admin in all groups
             };
         });
         
@@ -545,18 +604,29 @@ io.on('connection', (socket) => {
     
     socket.on('init-session', (sessionId) => {
         console.log('Initializing session:', sessionId);
-        const session = sessions.get(sessionId);
+        let session = sessions.get(sessionId);
+        
+        // Update socket client reference for this session
+        if (session) {
+            session.socketClient = socket;
+            sessions.set(sessionId, session);
+        }
         
         if (session?.isConnected && session.sock?.user) {
+            console.log('Session already connected, sending user info');
             socket.emit('connected', session.sock.user);
         } else if (session?.qr) {
+            console.log('Session has QR, sending to client');
             QRCode.toDataURL(session.qr, (err, url) => {
                 if (!err) {
                     socket.emit('qr', url);
+                } else {
+                    console.error('Error generating QR from stored data:', err);
                 }
             });
         } else {
             // Start new session
+            console.log('Starting new WhatsApp connection for session:', sessionId);
             connectToWhatsApp(sessionId, socket);
         }
     });

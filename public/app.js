@@ -156,8 +156,25 @@ function clearLocalStorage() {
     }
 }
 
-function clearSession() {
-    if (confirm('Apakah Anda yakin ingin menghapus session WhatsApp? Anda perlu login ulang.')) {
+async function clearSession() {
+    if (confirm('Apakah Anda yakin ingin menghapus session WhatsApp? File session akan dihapus dan Anda perlu scan QR ulang.')) {
+        try {
+            // Call backend to clear session files
+            const response = await fetch(`${basePath}/clear-session/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                addLogEntry('Session cleared successfully', 'success');
+            }
+        } catch (error) {
+            console.error('Clear session error:', error);
+        }
+        
+        // Remove from local storage and reload
         localStorage.removeItem('wa_session_id');
         location.reload();
     }
